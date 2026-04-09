@@ -1,0 +1,40 @@
+{
+  "name": "@easy-build/cli",
+  "version": "0.1.0",
+  "description": "EAS CLI Clone for easy-build-expo",
+  "bin": {
+    "eas": "./bin/run"
+  },
+  "files": [
+    "/bin",
+    "/dist",
+    "/oclif.manifest.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "postpack": "oclif manifest",
+    "prepack": "oclif manifest",
+    "version": "oclif-dev readme"
+  },
+  "dependencies": {
+    "@easy-build/shared-types": "workspace:*",
+    "@oclif/core": "^4.0.0",
+    "@oclif/plugin-help": "^6.2.0",
+    "axios": "^1.8.0",
+    "form-data": "^4.0.0",
+    "inquirer": "^12.0.0"
+  },
+  "devDependencies": {
+    "@oclif/test": "^4.0.0",
+    "@types/node": "^22.10.0",
+    "oclif": "^4.22.96",
+    "typescript": "^6.0.2"
+  },
+  "oclif": {
+    "bin": "eas",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-help"
+    ]
+  }
+}

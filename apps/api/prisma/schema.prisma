@@ -1,0 +1,237 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ──────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String?
+  githubId      String?   @unique
+  githubLogin   String?
+  avatarUrl     String?
+  name          String?
+  role          UserRole  @default(MEMBER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  memberships   OrgMember[]
+  tokens        RefreshToken[]
+  projects      Project[]
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ─── Organisations ──────────────────────────────────────────
+
+model Organisation {
+  id        String      @id @default(uuid())
+  slug      String      @unique
+  name      String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  members   OrgMember[]
+  projects  Project[]
+}
+
+model OrgMember {
+  id     String       @id @default(uuid())
+  role   UserRole     @default(MEMBER)
+  userId String
+  orgId  String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org    Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+}
+
+// ─── Projects ────────────────────────────────────────────────
+
+model Project {
+  id          String        @id @default(uuid())
+  slug        String        @unique
+  name        String
+  packageName String?
+  githubRepo  String?
+  webhookUrl  String?
+  ownerId     String
+  orgId       String?
+  owner       User          @relation(fields: [ownerId], references: [id])
+  org         Organisation? @relation(fields: [orgId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  builds       Build[]
+  credentials  Credential[]
+  secrets      Secret[]
+  submissions  Submission[]
+  otaUpdates   OtaUpdate[]
+  workflows    WorkflowRun[]
+}
+
+// ─── Builds ──────────────────────────────────────────────────
+
+model Build {
+  id            String      @id @default(uuid())
+  projectId     String
+  project       Project     @relation(fields: [projectId], references: [id])
+  profile       BuildProfile
+  platform      String      @default("android")
+  status        BuildStatus @default(QUEUED)
+  triggeredBy   String?
+  gitRef        String?
+  gitCommit     String?
+  logOutput     String?
+  artifactUrl   String?     // Google Drive file URL
+  driveFileId   String?     // Google Drive file ID
+  durationMs    Int?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+enum BuildProfile {
+  development
+  preview
+  production
+}
+
+enum BuildStatus {
+  QUEUED
+  RUNNING
+  PASSED
+  FAILED
+  CANCELLED
+}
+
+// ─── Credentials (Keystores) ─────────────────────────────────
+
+model Credential {
+  id               String   @id @default(uuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id])
+  label            String
+  encryptedKeystore String  // AES-256 encrypted
+  keyAlias         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ─── Secrets ─────────────────────────────────────────────────
+
+model Secret {
+  id             String   @id @default(uuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id])
+  key            String
+  encryptedValue String   // AES-256 encrypted
+  profile        String?  // null = all profiles
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([projectId, key, profile])
+}
+
+// ─── Play Store Submissions ───────────────────────────────────
+
+model Submission {
+  id          String           @id @default(uuid())
+  projectId   String
+  project     Project          @relation(fields: [projectId], references: [id])
+  buildId     String?
+  track       PlayStoreTrack
+  versionCode Int?
+  status      SubmissionStatus @default(PENDING)
+  errorDetail String?
+  submittedAt DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+enum PlayStoreTrack {
+  internal
+  alpha
+  beta
+  production
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  FAILED
+}
+
+// ─── OTA Updates ─────────────────────────────────────────────
+
+model OtaUpdate {
+  id             String   @id @default(uuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id])
+  branch         String
+  channel        String?
+  message        String?
+  bundleUrl      String?
+  runtimeVersion String?
+  rolloutPercent Int      @default(100)
+  isRolledBack   Boolean  @default(false)
+  publishedAt    DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ─── CI/CD Workflows ─────────────────────────────────────────
+
+model WorkflowRun {
+  id          String          @id @default(uuid())
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id])
+  workflowFile String
+  trigger     String
+  status      WorkflowStatus  @default(QUEUED)
+  jobs        WorkflowJob[]
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+}
+
+model WorkflowJob {
+  id           String         @id @default(uuid())
+  workflowRunId String
+  workflowRun  WorkflowRun    @relation(fields: [workflowRunId], references: [id])
+  name         String
+  type         String
+  status       WorkflowStatus @default(QUEUED)
+  logOutput    String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+}
+
+enum WorkflowStatus {
+  QUEUED
+  RUNNING
+  PASSED
+  FAILED
+  CANCELLED
+}

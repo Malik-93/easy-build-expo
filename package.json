@@ -1,0 +1,24 @@
+{
+  "name": "easy-build-expo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EAS Platform Clone — Phase 1: Android APK Build Service",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "turbo": "^2.9.5",
+    "typescript": "^6.0.2",
+    "prettier": "^3.5.0",
+    "@types/node": "^22.10.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
